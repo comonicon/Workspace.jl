@@ -20,7 +20,6 @@ function make_router(s::Session)
     end
 
     function get_workspace(req::HTTP.Request)
-        println(HTTP.payload(req))
         d = JSON.parse(IOBuffer(HTTP.payload(req)))
         haskey(d, "uuid") || @error "cannot find field uuid"
         ins = s.workspace_table.workspaces[UUID(d["uuid"])]
@@ -39,15 +38,15 @@ function make_router(s::Session)
         end
 
         if haskey(d, "file") # local file
-            eval_in_workspace(s.workspace_table, workspace, quote
+            output = eval_in_workspace(s.workspace_table, workspace, quote
                 include($(d["file"]))
             end)
         elseif haskey(d, "script") # some remote script
-            eval_in_workspace(s.workspace_table, workspace, Meta.parse(d["script"]))
+            output = eval_in_workspace(s.workspace_table, workspace, Meta.parse(d["script"]))
         else
             @error "expect field 'file' or 'script'."
         end
-        return HTTP.Response(200)
+        return HTTP.Response(200, output)
     end
     
     function delete_workspace(req::HTTP.Request)
@@ -59,6 +58,7 @@ function make_router(s::Session)
 
     HTTP.@register(router, "POST", "api/v1/workspace/", create_workspace)
     HTTP.@register(router, "GET", "api/v1/workspace/", get_workspace)
+    # this actually updates the workspace state thus we use PUT here
     HTTP.@register(router, "PUT", "api/v1/workspace/", eval_program)
     HTTP.@register(router, "DELETE", "api/v1/workspace/", delete_workspace)
     return router
@@ -74,7 +74,7 @@ function serve(sess::Session)
         HTTP.closeread(http)
 
         params = HTTP.queryparams(HTTP.URI(request.target))
-        if haskey(params, "token") && session.binder_token === nothing 
+        if haskey(params, "token") && session.binder_token === nothing
             session.binder_token = params["token"]
         end
 

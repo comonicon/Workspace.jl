@@ -27,10 +27,13 @@ table = WorkspaceTable()
 current_nproc = nprocs()
 add_workspace_process!(table, ins)
 eval_in_workspace(table, ins, quote
-    using Pkg
-    Pkg.status()
+    println("aaaaa")
 end)
 
 @test nprocs() == current_nproc + 1
 rm_workspace!(table, ins)
 @test nprocs() == current_nproc
+
+f = Distributed.remotecall(2) do ch
+end
+fetch(f)

@@ -26,6 +26,10 @@ end
 function _convert_to_exeflags(options::CompilerOptions)::Vector{String}
     option_list = String[]
 
+    workspace_deps = Dict{String, Any}(
+        "Suppressor" => "fd094767-a336-5f1f-9728-57cf17d0bbfb"
+    )
+
     for name in fieldnames(CompilerOptions)
         name === :project && continue # skip project
         flagname = string("--", replace(String(name), "_" => "-"))
@@ -44,6 +48,8 @@ function _convert_to_exeflags(options::CompilerOptions)::Vector{String}
     open(temp_project, "w+") do io
         deps = get(options.project, "deps", Dict{String, Any}())
         compat = get(options.project, "compat", Dict{String, Any}())
+
+        merge!(deps, workspace_deps)
         TOML.print(io, Dict("deps"=>deps, "compat"=>compat);
         sorted=true, by=key -> (Pkg.Types.project_key_order(key), key))
     end
@@ -111,6 +117,7 @@ function add_workspace_process!(table::WorkspaceTable, ins::WorkspaceInstance)
     end)
     # create the workspace module
     Distributed.remotecall_eval(Main, [pid], Expr(:toplevel, :(module $(ins.name) end)))
+    Distributed.remotecall_eval(Main, [pid], Expr(:toplevel, :(using Suppressor)))
     table.workspaces[ins.uuid] = ins
     table.process[ins.uuid] = pid
     return table
@@ -129,7 +136,9 @@ end
 function eval_in_workspace(table::WorkspaceTable, ins::WorkspaceInstance, expr)
     haskey(table.process, ins.uuid) || error("workspace process is not spawned, call add_workspace_process")
     pid = table.process[ins.uuid]
-    return Distributed.remotecall_eval(Main, [pid], quote
-        Core.eval($(ins.name), $(QuoteNode(expr)))
+    Distributed.remotecall_fetch(Core.eval, pid, Main, quote
+        Suppressor.@capture_out begin
+            Core.eval($(ins.name), $(QuoteNode(expr)))
+        end
     end)
 end

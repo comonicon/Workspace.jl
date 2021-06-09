@@ -26,11 +26,16 @@ HTTP.open("POST", "http://127.0.0.1:8081/api/v1/workspace") do io
     write(io, JSON.json(d))
 end
 
-HTTP.open("GET", "http://127.0.0.1:8081/api/v1/workspace") do io
-    println(JSON.json(Dict("uuid" => "94f78cb8-c85a-11eb-0dc6-f7f6bd9facf1")))
-    write(io, JSON.json(Dict("uuid" => "94f78cb8-c85a-11eb-0dc6-f7f6bd9facf1")))
-end
-
 response = HTTP.get("http://127.0.0.1:8081/api/v1/workspace"; body=JSON.json(Dict("uuid" => "94f78cb8-c85a-11eb-0dc6-f7f6bd9facf1")))
 d = JSON.parse(IOBuffer(HTTP.payload(response)))
-from_dict(WorkspaceInstance, )
+
+
+response = HTTP.put("http://127.0.0.1:8081/api/v1/workspace"; body=JSON.json(Dict(
+    "workspace" => "94f78cb8-c85a-11eb-0dc6-f7f6bd9facf1",
+    "args" => ["A", "--option=2", "--flag"],
+    "script" => """
+    println(ARGS)
+    """
+)))
+
+String(HTTP.payload(response))
