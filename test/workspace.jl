@@ -1,3 +1,4 @@
+using Distributed
 using Workspace
 using Test
 using Configurations
@@ -23,13 +24,13 @@ d = Dict(
 s = JSON.json(d)
 ins = from_dict(WorkspaceInstance, JSON.parse(s))
 table = WorkspaceTable()
+current_nproc = nprocs()
 add_workspace_process!(table, ins)
 eval_in_workspace(table, ins, quote
     using Pkg
     Pkg.status()
 end)
 
-using Distributed
-Distributed.remotecall_eval(Main, 3, Expr(:toplevel, quote
-using JSON
-end))
+@test nprocs() == current_nproc + 1
+rm_workspace!(table, ins)
+@test nprocs() == current_nproc
