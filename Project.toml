@@ -19,6 +19,11 @@ UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 
 [compat]
 Suppressor = "0.2"
+Configurations = "0.15"
+StructTypes = "1"
+JSON = "0.21"
+MLStyle = "0.4"
+HTTP = "0.9"
 julia = "1.6.1"
 
 [extras]
